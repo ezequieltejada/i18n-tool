@@ -1,3 +1,5 @@
+[![Tests](https://github.com/ezequieltejada/i18n-tool/actions/workflows/tests.yml/badge.svg)](https://github.com/ezequieltejada/i18n-tool/actions/workflows/tests.yml)
+
 # i18n CLI Tool
 
 A CLI tool for managing translation keys across multiple JSON files in an Angular `@ngx-translate` project.
