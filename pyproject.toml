@@ -13,4 +13,4 @@ dependencies = ["click"]
 i18n-tool = "cli:cli"
 
 [tool.setuptools]
-py-modules = ["cli", "core"]
+py-modules = ["cli", "core", "config"]
