@@ -203,10 +203,11 @@ def delete(ctx, path, yes, cleanup):
             click.echo(f"[dry-run] Would delete '{path}' from '{lang}'")
             continue
         parent_empty = delete_by_path(data, path)
-        if parent_empty and not cleanup:
+        has_parent = "." in path
+        if parent_empty and has_parent and not cleanup:
             if not click.confirm(f"Parent of '{path}' is empty in '{lang}'. Clean up?"):
                 continue
-        if parent_empty and cleanup:
+        if parent_empty and has_parent and cleanup:
             # Walk up and remove empty parents
             parts = path.split(".")
             while len(parts) > 1:
@@ -245,7 +246,7 @@ def move(ctx, source, target, cleanup):
             continue
         set_by_path(data, target, val)
         parent_empty = delete_by_path(data, source)
-        if parent_empty:
+        if parent_empty and "." in source:
             if cleanup:
                 parts = source.split(".")
                 while len(parts) > 1:
