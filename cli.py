@@ -256,8 +256,8 @@ def move(ctx, source, target, cleanup):
                         delete_by_path(data, ".".join(parts))
                     else:
                         break
-            elif not click.confirm(f"Parent of '{source}' is empty in '{lang}'. Clean up?"):
-                pass
+            else:
+                click.echo(f"Note: parent of '{source}' is empty in '{lang}'. Use --cleanup to remove.")
     if not dry_run:
         save_all(i18n_dir, files)
 
