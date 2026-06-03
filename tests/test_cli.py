@@ -413,3 +413,23 @@ def test_update_force_uses_force_reinstall_flag(monkeypatch):
     runner.invoke(cli, ["self-update", "--force"])
     assert "--force-reinstall" in captured_cmd
     assert "--upgrade" not in captured_cmd
+
+
+def test_self_update_without_packaging_module(monkeypatch):
+    import builtins
+    import cli as cli_module
+
+    original_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name == "packaging.version":
+            raise ModuleNotFoundError("No module named 'packaging'")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
+    assert cli_module._is_update_available("1.0.0", "1.1.0") is True
+    assert cli_module._is_update_available("1.1.0", "1.1.0") is False
+    assert cli_module._is_update_available("1.0.0", "1.0.1") is True
+    assert cli_module._is_update_available("1.0.0", "2.0.0") is True
+    assert cli_module._is_update_available("1.0", "1.0.0") is False
