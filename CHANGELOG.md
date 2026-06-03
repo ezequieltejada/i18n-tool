@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.1](https://github.com/ezequieltejada/i18n-tool/compare/v1.1.0...v1.1.1) (2026-06-03)
+
+
+### Bug Fixes
+
+* handle self-update version checks without packaging ([cdd9a71](https://github.com/ezequieltejada/i18n-tool/commit/cdd9a71f134bcfebe2905afb31091672991dde99))
+* harden fallback self-update version parsing ([5d7fdc2](https://github.com/ezequieltejada/i18n-tool/commit/5d7fdc21d6854c73fd57993c8d7c5cc765d4ce96))
+
+
+### Documentation
+
+* update README with installation from releases and self-update u… ([41a7eef](https://github.com/ezequieltejada/i18n-tool/commit/41a7eefb16cc42999498453a39aa95553e76bac6))
+* update README with installation from releases and self-update usage ([5c58c68](https://github.com/ezequieltejada/i18n-tool/commit/5c58c68ddea85f68802cfd3ee3d4f16fe8e4f96c))
+
 ## [1.1.0](https://github.com/ezequieltejada/i18n-tool/compare/v1.0.0...v1.1.0) (2026-06-03)
 
 
