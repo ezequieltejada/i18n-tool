@@ -415,7 +415,7 @@ def test_update_force_uses_force_reinstall_flag(monkeypatch):
     assert "--upgrade" not in captured_cmd
 
 
-def test_self_update_version_check_without_packaging(monkeypatch):
+def test_self_update_without_packaging_module(monkeypatch):
     import builtins
     import cli as cli_module
 
@@ -430,3 +430,6 @@ def test_self_update_version_check_without_packaging(monkeypatch):
 
     assert cli_module._is_update_available("1.0.0", "1.1.0") is True
     assert cli_module._is_update_available("1.1.0", "1.1.0") is False
+    assert cli_module._is_update_available("1.0.0", "1.0.1") is True
+    assert cli_module._is_update_available("1.0.0", "2.0.0") is True
+    assert cli_module._is_update_available("1.0", "1.0.0") is False
