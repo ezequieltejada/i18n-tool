@@ -3,6 +3,10 @@ import json
 import os
 
 
+class ValidationError(Exception):
+    """Raised when a written JSON file fails validation."""
+
+
 def load_all(i18n_dir):
     result = {}
     for f in os.listdir(i18n_dir):
@@ -13,9 +17,43 @@ def load_all(i18n_dir):
 
 
 def save_all(i18n_dir, files):
+    # Backup original contents for rollback
+    backups = {}
+    for name in files:
+        path = os.path.join(i18n_dir, f"{name}.json")
+        if os.path.exists(path):
+            with open(path, "rb") as fh:
+                backups[name] = fh.read()
+
+    # Write files
     for name, data in files.items():
         with open(os.path.join(i18n_dir, f"{name}.json"), "w") as fh:
             fh.write(json.dumps(data, indent=2, ensure_ascii=False))
+
+    # Validate: re-read and compare
+    for name, expected in files.items():
+        path = os.path.join(i18n_dir, f"{name}.json")
+        try:
+            with open(path) as fh:
+                actual = json.load(fh)
+        except (json.JSONDecodeError, OSError) as e:
+            _rollback(i18n_dir, files, backups)
+            raise ValidationError(f"Invalid JSON in '{name}.json': {e}")
+        if actual != expected:
+            _rollback(i18n_dir, files, backups)
+            raise ValidationError(
+                f"Data mismatch in '{name}.json': written content does not match expected data"
+            )
+
+
+def _rollback(i18n_dir, files, backups):
+    for name in files:
+        path = os.path.join(i18n_dir, f"{name}.json")
+        if name in backups:
+            with open(path, "wb") as fh:
+                fh.write(backups[name])
+        elif os.path.exists(path):
+            os.remove(path)
 
 
 def get_by_path(data, dot_path):

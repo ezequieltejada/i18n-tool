@@ -1,8 +1,15 @@
 # cli.py — Click CLI entry point
 import click
-from core import load_all, save_all, get_by_path, set_by_path, delete_by_path, search_keys, search_values
+from core import load_all, save_all, get_by_path, set_by_path, delete_by_path, search_keys, search_values, ValidationError
 from config import (load_config, save_config, build_default_map,
                     config_path_local, config_path_global, FLAG_COMMANDS, SUBCOMMANDS)
+
+
+def _safe_save(i18n_dir, files):
+    try:
+        save_all(i18n_dir, files)
+    except ValidationError as e:
+        raise click.ClickException(str(e))
 
 
 def _load_merged_config():
@@ -158,7 +165,7 @@ def create(ctx, path, lang, value, no_normalize):
         click.echo(f"[dry-run] Would create '{path}' in '{lang}' with value '{val}'")
         return
     set_by_path(files[lang], path, val)
-    save_all(i18n_dir, files)
+    _safe_save(i18n_dir, files)
 
 
 @cli.command()
@@ -179,7 +186,7 @@ def update(ctx, path, lang, value):
         click.echo(f"[dry-run] Would update '{path}' in '{lang}': '{old}' → '{value}'")
         return
     set_by_path(files[lang], path, value)
-    save_all(i18n_dir, files)
+    _safe_save(i18n_dir, files)
 
 
 @cli.command()
@@ -218,7 +225,7 @@ def delete(ctx, path, yes, cleanup):
                 else:
                     break
     if not dry_run:
-        save_all(i18n_dir, files)
+        _safe_save(i18n_dir, files)
 
 
 @cli.command()
@@ -259,7 +266,7 @@ def move(ctx, source, target, cleanup):
             else:
                 click.echo(f"Note: parent of '{source}' is empty in '{lang}'. Use --cleanup to remove.")
     if not dry_run:
-        save_all(i18n_dir, files)
+        _safe_save(i18n_dir, files)
 
 
 if __name__ == "__main__":

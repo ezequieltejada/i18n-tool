@@ -210,3 +210,95 @@ def test_search_values_skips_non_string_values():
     data = {"A": {"B": "leaf"}, "C": "match me"}
     # Only leaf string values should be searched
     assert search_values(data, "match") == ["C"]
+
+
+# --- save_all validation guardrail ---
+
+def test_save_all_validates_successfully(tmp_path):
+    """Normal write should pass validation without error."""
+    files = {"es": {"A": {"B": "1"}}, "eu": {"X": "2"}}
+    save_all(str(tmp_path), files)
+    # Files written correctly
+    assert json.loads((tmp_path / "es.json").read_text()) == {"A": {"B": "1"}}
+    assert json.loads((tmp_path / "eu.json").read_text()) == {"X": "2"}
+
+
+def test_save_all_rollback_on_invalid_json(tmp_path, monkeypatch):
+    """If written file is invalid JSON, rollback to original."""
+    from core import ValidationError
+    # Write an initial valid file
+    (tmp_path / "es.json").write_text('{"OLD": "data"}')
+    original_content = (tmp_path / "es.json").read_text()
+
+    # Monkeypatch open to corrupt the file during write
+    real_open = open
+    call_count = [0]
+
+    def corrupting_open(path, mode="r", *args, **kwargs):
+        if mode == "w" and str(path).endswith("es.json"):
+            call_count[0] += 1
+            fh = real_open(path, mode, *args, **kwargs)
+            # Write invalid JSON
+            fh.write("{broken")
+            fh.close()
+            # Return a dummy that does nothing on write
+            import io
+            return io.StringIO()
+        return real_open(path, mode, *args, **kwargs)
+
+    import builtins
+    monkeypatch.setattr(builtins, "open", corrupting_open)
+
+    with pytest.raises(ValidationError, match="Invalid JSON"):
+        save_all(str(tmp_path), {"es": {"NEW": "data"}})
+
+    # Rollback: file should be restored to original
+    monkeypatch.undo()
+    assert (tmp_path / "es.json").read_text() == original_content
+
+
+def test_save_all_rollback_on_data_mismatch(tmp_path, monkeypatch):
+    """If written file doesn't match expected data, rollback."""
+    from core import ValidationError
+    (tmp_path / "es.json").write_text('{"OLD": "data"}')
+    original_content = (tmp_path / "es.json").read_text()
+
+    # Monkeypatch json.dumps to produce wrong data
+    import core
+    original_dumps = json.dumps
+
+    def bad_dumps(data, **kwargs):
+        # Inject an extra key
+        if isinstance(data, dict) and "NEW" in data:
+            corrupted = {**data, "EXTRA": "corruption"}
+            return original_dumps(corrupted, **kwargs)
+        return original_dumps(data, **kwargs)
+
+    monkeypatch.setattr(json, "dumps", bad_dumps)
+
+    with pytest.raises(ValidationError, match="Data mismatch"):
+        save_all(str(tmp_path), {"es": {"NEW": "data"}})
+
+    monkeypatch.undo()
+    assert (tmp_path / "es.json").read_text() == original_content
+
+
+def test_save_all_rollback_removes_new_file(tmp_path, monkeypatch):
+    """If a file didn't exist before and validation fails, it gets deleted."""
+    from core import ValidationError
+    import core
+    original_dumps = json.dumps
+
+    def bad_dumps(data, **kwargs):
+        if isinstance(data, dict) and "A" in data:
+            corrupted = {**data, "EXTRA": "bad"}
+            return original_dumps(corrupted, **kwargs)
+        return original_dumps(data, **kwargs)
+
+    monkeypatch.setattr(json, "dumps", bad_dumps)
+
+    with pytest.raises(ValidationError):
+        save_all(str(tmp_path), {"es": {"A": "1"}})
+
+    monkeypatch.undo()
+    assert not (tmp_path / "es.json").exists()

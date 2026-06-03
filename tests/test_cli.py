@@ -268,3 +268,23 @@ def test_move_dry_run(tmp_path):
     assert result.exit_code == 0
     assert json.loads((tmp_path / "es.json").read_text()) == {"A": "1"}
     assert "dry-run" in result.output.lower()
+
+
+# --- validation guardrail integration ---
+
+def test_create_validation_failure_shows_error(tmp_path, monkeypatch):
+    """When validation fails, CLI shows error and exits non-zero."""
+    (tmp_path / "es.json").write_text(json.dumps({"EMPLEO": {}}))
+
+    from core import ValidationError
+    import cli as cli_module
+
+    def failing_save(i18n_dir, files):
+        raise ValidationError("Data mismatch in 'es.json': written content does not match expected data")
+
+    monkeypatch.setattr(cli_module, "save_all", failing_save)
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["--i18n-dir", str(tmp_path), "create", "EMPLEO.NUEVO", "es", "valor"])
+    assert result.exit_code != 0
+    assert "Data mismatch" in result.output
