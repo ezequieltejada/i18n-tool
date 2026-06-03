@@ -26,17 +26,23 @@ def save_all(i18n_dir, files):
                 backups[name] = fh.read()
 
     # Write files
-    for name, data in files.items():
-        with open(os.path.join(i18n_dir, f"{name}.json"), "w") as fh:
-            fh.write(json.dumps(data, indent=2, ensure_ascii=False))
+    try:
+        for name, data in files.items():
+            path = os.path.join(i18n_dir, f"{name}.json")
+            content = json.dumps(data, indent=2, ensure_ascii=False)
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(content)
+    except (OSError, TypeError, ValueError) as e:
+        _rollback(i18n_dir, files, backups)
+        raise ValidationError(f"Write failed for '{name}.json': {e}")
 
     # Validate: re-read and compare
     for name, expected in files.items():
         path = os.path.join(i18n_dir, f"{name}.json")
         try:
-            with open(path) as fh:
+            with open(path, encoding="utf-8") as fh:
                 actual = json.load(fh)
-        except (json.JSONDecodeError, OSError) as e:
+        except (json.JSONDecodeError, UnicodeError, OSError) as e:
             _rollback(i18n_dir, files, backups)
             raise ValidationError(f"Invalid JSON in '{name}.json': {e}")
         if actual != expected:
