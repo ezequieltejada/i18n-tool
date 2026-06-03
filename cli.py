@@ -300,7 +300,16 @@ def _get_latest_release(repo):
 
 def _is_update_available(local_version, latest_version):
     """Return True if latest is newer than local using semver comparison."""
-    from packaging.version import Version, InvalidVersion
+    try:
+        from packaging.version import Version, InvalidVersion
+    except ModuleNotFoundError:
+        import re
+
+        local_parts = tuple(int(part) for part in re.findall(r"\d+", local_version))
+        latest_parts = tuple(int(part) for part in re.findall(r"\d+", latest_version))
+        if local_parts and latest_parts:
+            return latest_parts > local_parts
+        return local_version != latest_version
     try:
         return Version(latest_version) > Version(local_version)
     except InvalidVersion:
