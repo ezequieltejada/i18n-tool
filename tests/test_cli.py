@@ -288,3 +288,128 @@ def test_create_validation_failure_shows_error(tmp_path, monkeypatch):
     result = runner.invoke(cli, ["--i18n-dir", str(tmp_path), "create", "EMPLEO.NUEVO", "es", "valor"])
     assert result.exit_code != 0
     assert "Data mismatch" in result.output
+
+
+# --- update command ---
+
+def test_update_already_up_to_date(monkeypatch):
+    import cli as cli_module
+    monkeypatch.setattr(cli_module, "_get_local_version", lambda: "1.2.0")
+    monkeypatch.setattr(cli_module, "_get_latest_release", lambda repo: {"tag_name": "v1.2.0"})
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["self-update"])
+    assert result.exit_code == 0
+    assert "Already up to date" in result.output
+
+
+def test_update_new_version_available(monkeypatch):
+    import cli as cli_module
+    import subprocess
+
+    monkeypatch.setattr(cli_module, "_get_local_version", lambda: "1.0.0")
+    monkeypatch.setattr(cli_module, "_get_latest_release", lambda repo: {"tag_name": "v1.1.0"})
+    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, "", ""))
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["self-update"])
+    assert result.exit_code == 0
+    assert "Updating from v1.0.0 to v1.1.0" in result.output
+    assert "Successfully updated" in result.output
+
+
+def test_update_force_reinstall(monkeypatch):
+    import cli as cli_module
+    import subprocess
+
+    monkeypatch.setattr(cli_module, "_get_local_version", lambda: "1.2.0")
+    monkeypatch.setattr(cli_module, "_get_latest_release", lambda repo: {"tag_name": "v1.2.0"})
+    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, "", ""))
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["self-update", "--force"])
+    assert result.exit_code == 0
+    assert "Successfully updated" in result.output
+
+
+def test_update_network_error(monkeypatch):
+    import cli as cli_module
+
+    def failing_fetch(repo):
+        raise Exception("Network unreachable")
+
+    monkeypatch.setattr(cli_module, "_get_latest_release", failing_fetch)
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["self-update"])
+    assert result.exit_code != 0
+    assert "Failed to check for updates" in result.output
+
+
+def test_update_pip_failure(monkeypatch):
+    import cli as cli_module
+    import subprocess
+
+    monkeypatch.setattr(cli_module, "_get_local_version", lambda: "1.0.0")
+    monkeypatch.setattr(cli_module, "_get_latest_release", lambda repo: {"tag_name": "v1.1.0"})
+    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, "", "error: git not found"))
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["self-update"])
+    assert result.exit_code != 0
+    assert "Update failed" in result.output
+
+
+def test_update_dry_run(monkeypatch):
+    import cli as cli_module
+
+    monkeypatch.setattr(cli_module, "_get_local_version", lambda: "1.0.0")
+    monkeypatch.setattr(cli_module, "_get_latest_release", lambda repo: {"tag_name": "v1.1.0"})
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["self-update", "--dry-run"])
+    assert result.exit_code == 0
+    assert "[dry-run]" in result.output
+    assert "--upgrade" in result.output
+
+
+def test_update_uses_upgrade_flag(monkeypatch):
+    """Normal update uses --upgrade, not --force-reinstall."""
+    import cli as cli_module
+    import subprocess
+
+    captured_cmd = []
+
+    def capture_run(*a, **kw):
+        captured_cmd.extend(a[0])
+        return subprocess.CompletedProcess(a[0], 0, "", "")
+
+    monkeypatch.setattr(cli_module, "_get_local_version", lambda: "1.0.0")
+    monkeypatch.setattr(cli_module, "_get_latest_release", lambda repo: {"tag_name": "v1.1.0"})
+    monkeypatch.setattr(subprocess, "run", capture_run)
+
+    runner = CliRunner()
+    runner.invoke(cli, ["self-update"])
+    assert "--upgrade" in captured_cmd
+    assert "--force-reinstall" not in captured_cmd
+
+
+def test_update_force_uses_force_reinstall_flag(monkeypatch):
+    """--force uses --force-reinstall."""
+    import cli as cli_module
+    import subprocess
+
+    captured_cmd = []
+
+    def capture_run(*a, **kw):
+        captured_cmd.extend(a[0])
+        return subprocess.CompletedProcess(a[0], 0, "", "")
+
+    monkeypatch.setattr(cli_module, "_get_local_version", lambda: "1.2.0")
+    monkeypatch.setattr(cli_module, "_get_latest_release", lambda repo: {"tag_name": "v1.2.0"})
+    monkeypatch.setattr(subprocess, "run", capture_run)
+
+    runner = CliRunner()
+    runner.invoke(cli, ["self-update", "--force"])
+    assert "--force-reinstall" in captured_cmd
+    assert "--upgrade" not in captured_cmd

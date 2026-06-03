@@ -269,5 +269,86 @@ def move(ctx, source, target, cleanup):
         _safe_save(i18n_dir, files)
 
 
+REPO = "ezequieltejada/i18n-tool"
+
+
+def _get_repo():
+    """Get repo from config or fall back to default."""
+    merged = _load_merged_config()
+    return merged.get("repo", REPO)
+
+
+def _get_local_version():
+    try:
+        from importlib.metadata import version
+        return version("i18n-tool")
+    except ImportError:
+        return None
+    except Exception:
+        # Package not installed via pip (e.g. running from source)
+        return None
+
+
+def _get_latest_release(repo):
+    import urllib.request
+    import json as _json
+    url = f"https://api.github.com/repos/{repo}/releases/latest"
+    req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json"})
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return _json.loads(resp.read().decode())
+
+
+def _is_update_available(local_version, latest_version):
+    """Return True if latest is newer than local using semver comparison."""
+    from packaging.version import Version, InvalidVersion
+    try:
+        return Version(latest_version) > Version(local_version)
+    except InvalidVersion:
+        return local_version != latest_version
+
+
+@cli.command("self-update")
+@click.option("--force", is_flag=True, help="Reinstall even if already on the latest version.")
+@click.option("--dry-run", is_flag=True, help="Show what would be done without installing.")
+def self_update(force, dry_run):
+    """Update i18n-tool to the latest release."""
+    repo = _get_repo()
+    try:
+        release = _get_latest_release(repo)
+    except Exception as e:
+        raise click.ClickException(f"Failed to check for updates: {e}")
+
+    tag = release["tag_name"]
+    latest_version = tag.lstrip("v")
+    local_version = _get_local_version()
+
+    if local_version and not force and not _is_update_available(local_version, latest_version):
+        click.echo(f"Already up to date (v{local_version}).")
+        return
+
+    if local_version:
+        click.echo(f"Updating from v{local_version} to v{latest_version}...")
+    else:
+        click.echo(f"Installing v{latest_version}...")
+
+    pip_url = f"git+https://github.com/{repo}.git@{tag}"
+    if dry_run:
+        flags = "--force-reinstall" if force else "--upgrade"
+        click.echo(f"[dry-run] Would run: pip install {pip_url} {flags}")
+        return
+
+    import subprocess
+    import sys
+    cmd = [sys.executable, "-m", "pip", "install", pip_url, "--quiet"]
+    if force:
+        cmd.append("--force-reinstall")
+    else:
+        cmd.append("--upgrade")
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise click.ClickException(f"Update failed: {result.stderr.strip()}")
+    click.echo(f"Successfully updated to v{latest_version}.")
+
+
 if __name__ == "__main__":
     cli()

@@ -12,6 +12,7 @@ FLAG_COMMANDS = {
     "no_normalize": ["create"],
     "yes": ["delete"],
     "cleanup": ["delete", "move"],
+    "repo": ["self-update"],
 }
 
 SUBCOMMANDS = {"search", "create", "update", "delete", "move"}

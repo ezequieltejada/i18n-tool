@@ -6,3 +6,4 @@ build/
 .eggs/
 PRD.md
 TASKS.md
+.env
