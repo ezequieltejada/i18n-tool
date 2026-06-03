@@ -415,7 +415,7 @@ def test_update_force_uses_force_reinstall_flag(monkeypatch):
     assert "--upgrade" not in captured_cmd
 
 
-def test_update_version_check_without_packaging(monkeypatch):
+def test_self_update_version_check_without_packaging(monkeypatch):
     import builtins
     import cli as cli_module
 

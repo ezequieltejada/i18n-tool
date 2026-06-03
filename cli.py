@@ -305,10 +305,22 @@ def _is_update_available(local_version, latest_version):
     except ModuleNotFoundError:
         import re
 
-        local_parts = tuple(int(part) for part in re.findall(r"\d+", local_version))
-        latest_parts = tuple(int(part) for part in re.findall(r"\d+", latest_version))
+        def _parse_parts(version):
+            parts = []
+            for token in version.split("."):
+                match = re.match(r"^(\d+)", token)
+                if not match:
+                    break
+                parts.append(int(match.group(1)))
+            return tuple(parts)
+
+        local_parts = _parse_parts(local_version)
+        latest_parts = _parse_parts(latest_version)
         if local_parts and latest_parts:
-            return latest_parts > local_parts
+            max_len = max(len(local_parts), len(latest_parts))
+            local_norm = local_parts + (0,) * (max_len - len(local_parts))
+            latest_norm = latest_parts + (0,) * (max_len - len(latest_parts))
+            return latest_norm > local_norm
         return local_version != latest_version
     try:
         return Version(latest_version) > Version(local_version)
