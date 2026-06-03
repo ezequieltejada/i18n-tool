@@ -6,6 +6,14 @@ A CLI tool for managing translation keys across multiple JSON files in an Angula
 
 ## Installation
 
+Install the latest release directly from GitHub:
+
+```bash
+pip install git+https://github.com/ezequieltejada/i18n-tool.git@v1.0.0
+```
+
+Or install from a local clone:
+
 ```bash
 pip install .
 ```
@@ -20,6 +28,26 @@ For development:
 
 ```bash
 pip install -r requirements.txt
+```
+
+## Updating
+
+Update to the latest release:
+
+```bash
+i18n-tool self-update
+```
+
+Force reinstall even if already on the latest version:
+
+```bash
+i18n-tool self-update --force
+```
+
+Preview what would happen without installing:
+
+```bash
+i18n-tool self-update --dry-run
 ```
 
 ## Usage
@@ -98,7 +126,17 @@ python -m pytest -q
 
 ## Architecture
 
-- `core.py` — Pure functions for JSON manipulation (no I/O in logic)
+- `core.py` — Pure functions for JSON manipulation with post-write validation and rollback
 - `cli.py` — Click CLI entry point with subcommands
+- `config.py` — Persistent configuration (local and global)
 - `tests/test_core.py` — Unit tests for core functions
 - `tests/test_cli.py` — Integration tests for CLI commands
+
+## Releases
+
+Releases are automated via [release-please](https://github.com/googleapis/release-please). Commits to `master` using [Conventional Commits](https://www.conventionalcommits.org/) format will automatically generate a Release PR with version bump and changelog. Merging that PR creates a GitHub release and tag.
+
+Commit prefixes:
+- `fix:` → patch bump (1.0.0 → 1.0.1)
+- `feat:` → minor bump (1.0.0 → 1.1.0)
+- `feat!:` or `fix!:` → major bump (1.0.0 → 2.0.0)
